@@ -138,8 +138,9 @@ namespace Leayal.Closers.CMF
                     Helper.Decode(ref bytebuffer);
 
                     // First 512 bytes is the filename
-                    tmp_filename = Encoding.Unicode.GetString(bytebuffer, 0, CmfFormat.FileHeaderNameSize);
-                    currentCMFEntry._filename = Encoding.Unicode.GetString(bytebuffer, 0, tmp_filename.IndexOf('\0'));
+                    tmp_filename = Encoding.ASCII.GetString(bytebuffer, 0, CmfFormat.FileHeaderNameSize);
+
+                    currentCMFEntry._filename = Encoding.Unicode.GetString(bytebuffer, 0, tmp_filename.IndexOf("\0\0") + 1);
 
                     // Next is 4 bytes for the unpacked size (aka original file)
                     currentCMFEntry._unpackedsize = BitConverter.ToInt32(bytebuffer, 512);
