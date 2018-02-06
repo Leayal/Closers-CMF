@@ -210,7 +210,7 @@ namespace Leayal.Closers.CMF
         /// <param name="progressChangedCallback">The progress callback handler</param>
         public void ExtractAllEntries(string outputFolder, System.ComponentModel.ProgressChangedEventHandler progressChangedCallback)
         {
-            double current = 0;
+            float current = 0F;
             string fullpath;
             using (IReader reader = this.ExtractAllEntries())
                 while (reader.MoveToNextEntry())
