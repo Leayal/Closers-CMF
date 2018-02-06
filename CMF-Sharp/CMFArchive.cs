@@ -99,7 +99,7 @@ namespace Leayal.Closers.CMF
 
         internal long dataoffsetStart;
 
-        private CMFArchive(Stream baseStream, bool leaveOpen)
+        internal CMFArchive(Stream baseStream, bool leaveOpen)
         {
             this.dataoffsetStart = 0;
             this.leaveStreamOpen = leaveOpen;
