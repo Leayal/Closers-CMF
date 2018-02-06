@@ -20,18 +20,30 @@ namespace Leayal.Closers.CMF
 
         public CMFEntry Entry => this.entryWalker.Current;
 
+        private bool _disposed;
         public void Dispose()
         {
+            if (this._disposed) return;
+            this._disposed = true;
             if (this.currentStream != null)
+            {
                 this.currentStream.Dispose();
+                this.currentStream = null;
+            }
             this.entryWalker.Dispose();
+            this.Disposed?.Invoke(this, System.EventArgs.Empty);
         }
+
+        internal event System.EventHandler Disposed;
 
         public bool MoveToNextEntry()
         {
             bool result = this.entryWalker.MoveNext();
             if (result && this.currentStream != null)
+            {
                 this.currentStream.Dispose();
+                this.currentStream = null;
+            }
             return result;
         }
 

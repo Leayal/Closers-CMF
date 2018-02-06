@@ -42,6 +42,7 @@ namespace Leayal.Closers.CMF
             return result;
         }
 
+        private CMFReader myReader;
         private bool leaveStreamOpen;
         private BinaryReader binaryReader;
         private byte[] _signature;
@@ -99,10 +100,11 @@ namespace Leayal.Closers.CMF
 
         internal long dataoffsetStart;
 
-        internal CMFArchive(Stream baseStream, bool leaveOpen)
+        private CMFArchive(Stream baseStream, bool leaveOpen)
         {
             this.dataoffsetStart = 0;
             this.leaveStreamOpen = leaveOpen;
+            this.myReader = null;
             this.BaseStream = baseStream;
         }
 
@@ -178,9 +180,18 @@ namespace Leayal.Closers.CMF
         /// <returns></returns>
         public IReader ExtractAllEntries()
         {
-            CMFReader reader = new CMFReader(this);
+            if (this.myReader != null)
+                throw new InvalidOperationException("You can only have one reader per archive. Dispose the old one before getting a new one.");
 
-            return reader;
+            this.myReader = new CMFReader(this);
+            this.myReader.Disposed += this.MyReader_Disposed;
+
+            return this.myReader;
+        }
+
+        private void MyReader_Disposed(object sender, EventArgs e)
+        {
+            this.myReader = null;
         }
 
         /// <summary>
