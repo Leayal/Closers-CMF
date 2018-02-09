@@ -18,7 +18,15 @@ namespace Leayal.Closers.CMF
             this.entryWalker = archive.Entries.GetEnumerator();
         }
 
-        public CMFEntry Entry => this.entryWalker.Current;
+        public CMFEntry Entry
+        {
+            get
+            {
+                if (this._disposed)
+                    throw new System.ObjectDisposedException("Reader");
+                return this.entryWalker.Current;
+            }
+        }
 
         private bool _disposed;
         public void Dispose()
@@ -38,6 +46,9 @@ namespace Leayal.Closers.CMF
 
         public bool MoveToNextEntry()
         {
+            if (this._disposed)
+                throw new System.ObjectDisposedException("Reader");
+
             bool result = this.entryWalker.MoveNext();
             if (result && this.currentStream != null)
             {
@@ -49,6 +60,9 @@ namespace Leayal.Closers.CMF
 
         public Stream OpenEntryStream()
         {
+            if (this._disposed)
+                throw new System.ObjectDisposedException("Reader");
+
             long entrydataoffset = this.Entry.dataoffset + this.dataoffsetStart;
             this.sourceArchive.BaseStream.Seek(entrydataoffset, SeekOrigin.Begin);
             if (!CmfFormat.IsEncryptedFile(this.Entry.FileName) && this.Entry.IsCompressed)
@@ -73,6 +87,8 @@ namespace Leayal.Closers.CMF
 
         public void WriteEntryTo(string filepath)
         {
+            if (this._disposed)
+                throw new System.ObjectDisposedException("Reader");
             using (FileStream fs = File.Create(filepath))
                 this.WriteEntryTo(fs);
         }

@@ -308,6 +308,12 @@ namespace Leayal.Closers.CMF
             if (this._disposed) return;
             this._disposed = true;
 
+            if (this.myReader != null)
+                this.myReader.Dispose();
+
+            if (this.myEditor != null)
+                this.myEditor.Dispose();
+
             if (!this.leaveStreamOpen)
             {
                 if (this.binaryReader != null)

@@ -22,6 +22,9 @@ namespace Leayal.Closers.CMF
 
         private bool SetEntryData(CMFEntry entry, object data)
         {
+            if (this._disposed)
+                throw new System.ObjectDisposedException("Editor");
+
             if (entry == null || this.myArchive.Entries.IndexOf(entry) == -1)
                 return false;
             else
@@ -107,6 +110,9 @@ namespace Leayal.Closers.CMF
 
         public void Save()
         {
+            if (this._disposed)
+                throw new System.ObjectDisposedException("Editor");
+
             if (!this.myArchive.BaseStream.CanWrite)
                 throw new InvalidOperationException("The archive is opened with read-only stream. Use SaveAs() instead or re-open the file with read/write access.");
 
@@ -166,6 +172,9 @@ namespace Leayal.Closers.CMF
 
         public void WriteTo(string filepath)
         {
+            if (this._disposed)
+                throw new System.ObjectDisposedException("Editor");
+
             FileStream tfs = this.myArchive.BaseStream as FileStream;
             if (tfs != null || string.Equals(tfs.Name, Path.GetFullPath(filepath), StringComparison.OrdinalIgnoreCase))
                 this.Save();
@@ -178,6 +187,9 @@ namespace Leayal.Closers.CMF
 
         public void WriteTo(Stream outStream)
         {
+            if (this._disposed)
+                throw new System.ObjectDisposedException("Editor");
+
             if (datadictionary.Count == 0)
                 return;
 
