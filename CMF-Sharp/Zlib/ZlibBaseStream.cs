@@ -30,6 +30,7 @@ using System.IO;
 using SharpCompress.Converters;
 using System.Text;
 using System.IO.Compression;
+using Leayal.Closers.CMF;
 
 namespace SharpCompress.Compressors.Deflate
 {

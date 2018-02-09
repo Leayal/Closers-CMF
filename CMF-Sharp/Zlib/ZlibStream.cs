@@ -29,6 +29,7 @@ using System;
 using System.IO;
 using System.IO.Compression;
 using System.Text;
+using Leayal.Closers.CMF;
 
 namespace SharpCompress.Compressors.Deflate
 {

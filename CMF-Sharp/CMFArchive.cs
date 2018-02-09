@@ -43,9 +43,10 @@ namespace Leayal.Closers.CMF
         }
 
         private CMFReader myReader;
+        private CMFEditor myEditor;
         private bool leaveStreamOpen;
         private BinaryReader binaryReader;
-        private byte[] _signature;
+        internal byte[] _signature;
         private ReadOnlyCollection<CMFEntry> entrylist;
 
         /// <summary>
@@ -127,22 +128,23 @@ namespace Leayal.Closers.CMF
             string tmp_filename;
             byte[] bytebuffer = new byte[CmfFormat.FileHeaderSize];
             int readcount;
+            int offset = (int)this.BaseStream.Position;
             CMFEntry currentCMFEntry;
             for (int i = 0; i < entryList.Length; i++)
             {
                 tmp_filename = null;
                 currentCMFEntry = new CMFEntry();
-
+                
                 readcount = this.binaryReader.Read(bytebuffer, 0, bytebuffer.Length);
                 if (readcount == bytebuffer.Length)
                 {
+                    currentCMFEntry.headeroffset = offset;
                     // Decode the buffer.
                     Helper.Decode(ref bytebuffer);
 
                     // First 512 bytes is the filename
                     tmp_filename = Encoding.ASCII.GetString(bytebuffer, 0, CmfFormat.FileHeaderNameSize);
-
-                    currentCMFEntry._filename = Encoding.Unicode.GetString(bytebuffer, 0, tmp_filename.IndexOf("\0\0") + 1);
+                    currentCMFEntry._filename = Encoding.Unicode.GetString(bytebuffer, 0, tmp_filename.IndexOf("\0\0") + 1); // This doesn't look good.
 
                     // Next is 4 bytes for the unpacked size (aka original file)
                     currentCMFEntry._unpackedsize = BitConverter.ToInt32(bytebuffer, 512);
@@ -167,6 +169,7 @@ namespace Leayal.Closers.CMF
                     }
                     entryList[i] = currentCMFEntry;
                 }
+                offset += readcount;
             }
 
             this.dataoffsetStart = this.BaseStream.Position;
@@ -246,7 +249,7 @@ namespace Leayal.Closers.CMF
 
             long entrydataoffset = entry.dataoffset + this.dataoffsetStart;
 
-            if (entry.IsCompressed)
+            if (!CmfFormat.IsEncryptedFile(entry.FileName) && entry.IsCompressed)
             {
                 using (Stream srcStream = new ZlibStream(new EntryStream(this.BaseStream, entrydataoffset, entry.CompressedSize, true), System.IO.Compression.CompressionMode.Decompress, false))
                 {
@@ -264,6 +267,36 @@ namespace Leayal.Closers.CMF
                     outStream.Flush();
                 }
             }
+        }
+
+        /// <summary>
+        /// Create the archive editor for the current CMF Archive instance.
+        /// </summary>
+        /// <returns></returns>
+        public IEditor OpenEditor()
+        {
+            return this.OpenEditor(CompressionLevel.Default);
+        }
+
+        /// <summary>
+        /// Create the archive editor with the given CompressionLevel for the current CMF Archive instance.
+        /// </summary>
+        /// <param name="compressionLevel">The compression level that the editor will use to compress data</param>
+        /// <returns></returns>
+        public IEditor OpenEditor(CompressionLevel compressionLevel)
+        {
+            if (this.myReader != null)
+                throw new InvalidOperationException("You can only have one reader per archive. Dispose the old one before getting a new one.");
+
+            this.myEditor = new CMFEditor(this, compressionLevel);
+            this.myEditor.Disposed += this.myEditor_Disposed;
+
+            return this.myEditor;
+        }
+
+        private void myEditor_Disposed(object sender, EventArgs e)
+        {
+            this.myEditor = null;
         }
 
         private bool _disposed;

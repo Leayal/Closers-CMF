@@ -32,6 +32,7 @@
         public long UnpackedSize => this._unpackedsize;
 
         internal long dataoffset;
+        internal int headeroffset;
 
         internal CMFEntry()
         {

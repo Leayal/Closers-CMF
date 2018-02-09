@@ -1,7 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
+﻿using System.IO;
 
 namespace Leayal.Closers.CMF
 {
@@ -13,5 +10,28 @@ namespace Leayal.Closers.CMF
 
         public const int FileHeaderSize = 528;
         public const int FileHeaderNameSize = 512;
+
+        internal static bool IsEncryptedFile(string filename)
+        {
+            int extIndex = filename.LastIndexOf('.');
+            if (extIndex > -1)
+            {
+                string ext = filename.Substring(extIndex + 1);
+                if (string.IsNullOrEmpty(ext))
+                    return false;
+                else
+                {
+                    if (string.Equals(ext, "lua", System.StringComparison.OrdinalIgnoreCase))
+                        return true;
+                    else if (string.Equals(ext, "tet", System.StringComparison.OrdinalIgnoreCase))
+                        return true;
+                    else if (string.Equals(ext, "xet", System.StringComparison.OrdinalIgnoreCase))
+                        return true;
+                    else if (string.Equals(ext, "fx", System.StringComparison.OrdinalIgnoreCase))
+                        return true;
+                }
+            }
+            return false;
+        }
     }
 }

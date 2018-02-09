@@ -36,16 +36,14 @@
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="System" />
-    <Reference Include="System.Core" />
-    <Reference Include="System.Xml.Linq" />
-    <Reference Include="System.Data.DataSetExtensions" />
     <Reference Include="Microsoft.CSharp" />
-    <Reference Include="System.Data" />
-    <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="CMFArchive.cs" />
+    <Compile Include="CMFEditor.cs" />
     <Compile Include="CMFEntry.cs" />
+    <Compile Include="IEditor.cs" />
+    <Compile Include="CompressionLevel.cs" />
     <Compile Include="Zlib\CRC32.cs" />
     <Compile Include="Zlib\DataConverter.cs" />
     <Compile Include="Zlib\DeflateManager.cs" />

@@ -50,7 +50,7 @@ namespace Leayal.Closers.CMF
         public Stream OpenEntryStream()
         {
             long entrydataoffset = this.Entry.dataoffset + this.dataoffsetStart;
-            if (Entry.IsCompressed)
+            if (!CmfFormat.IsEncryptedFile(this.Entry.FileName) && this.Entry.IsCompressed)
             {
                 this.currentStream = new ZlibStream(new EntryStream(this.sourceArchive.BaseStream, entrydataoffset, Entry.CompressedSize, true), System.IO.Compression.CompressionMode.Decompress, false);
             }
