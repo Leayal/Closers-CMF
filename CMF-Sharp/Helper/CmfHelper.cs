@@ -1,11 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-
-namespace Leayal.Closers.CMF
+﻿namespace Leayal.Closers.CMF
 {
-    internal static class Helper
+    internal static class CmfHelper
     {
         internal static void Decode(ref byte[] data)
         {

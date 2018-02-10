@@ -42,6 +42,7 @@
     <Compile Include="CMFArchive.cs" />
     <Compile Include="CMFEditor.cs" />
     <Compile Include="CMFEntry.cs" />
+    <Compile Include="Helper\StringHelper.cs" />
     <Compile Include="IEditor.cs" />
     <Compile Include="CompressionLevel.cs" />
     <Compile Include="Zlib\CRC32.cs" />
@@ -61,7 +62,7 @@
     <Compile Include="CmfFormat.cs" />
     <Compile Include="CMFReader.cs" />
     <Compile Include="EntryStream.cs" />
-    <Compile Include="Helper.cs" />
+    <Compile Include="Helper\CmfHelper.cs" />
     <Compile Include="IReader.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>

@@ -3,6 +3,7 @@ using System;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Text;
+using Leayal.Closers.CMF.Helper;
 
 namespace Leayal.Closers.CMF
 {
@@ -116,7 +117,7 @@ namespace Leayal.Closers.CMF
             // Skip the first 100 bytes. Signature, perhaps?
             this._signature = this.binaryReader.ReadBytes(100);
 
-            this.filecount = Helper.Decode(binaryReader.ReadInt32(), CmfFormat.EntryKey1);
+            this.filecount = CmfHelper.Decode(binaryReader.ReadInt32(), CmfFormat.EntryKey1);
 
             /*
              * File table has fixed row size 528 bytes.
@@ -127,7 +128,7 @@ namespace Leayal.Closers.CMF
             CMFEntry[] entryList = new CMFEntry[this.filecount];
             string tmp_filename;
             byte[] bytebuffer = new byte[CmfFormat.FileHeaderSize];
-            int readcount;
+            int readcount, indexofNull;
             int offset = (int)this.BaseStream.Position;
             CMFEntry currentCMFEntry;
             for (int i = 0; i < entryList.Length; i++)
@@ -140,11 +141,22 @@ namespace Leayal.Closers.CMF
                 {
                     currentCMFEntry.headeroffset = offset;
                     // Decode the buffer.
-                    Helper.Decode(ref bytebuffer);
+                    CmfHelper.Decode(ref bytebuffer);
 
                     // First 512 bytes is the filename
                     tmp_filename = Encoding.ASCII.GetString(bytebuffer, 0, CmfFormat.FileHeaderNameSize);
-                    currentCMFEntry._filename = Encoding.Unicode.GetString(bytebuffer, 0, tmp_filename.IndexOf("\0\0") + 1); // This doesn't look good.
+
+                    // This doesn't look good.
+                    indexofNull = tmp_filename.IndexOf("\0\0");
+                    if (tmp_filename.IndexOf("\0\0") == -1)
+                    {
+                        indexofNull = tmp_filename.LastIndexOf('\0');
+                        tmp_filename = Encoding.ASCII.GetString(bytebuffer, 0, indexofNull);
+                    }
+                    else
+                        currentCMFEntry._filename = Encoding.Unicode.GetString(bytebuffer, 0, indexofNull + 1);
+
+                    currentCMFEntry._filename = currentCMFEntry._filename.RemoveNullChar();
 
                     // Next is 4 bytes for the unpacked size (aka original file)
                     currentCMFEntry._unpackedsize = BitConverter.ToInt32(bytebuffer, 512);
