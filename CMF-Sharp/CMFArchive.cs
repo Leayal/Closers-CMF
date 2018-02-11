@@ -13,6 +13,16 @@ namespace Leayal.Closers.CMF
     public class CMFArchive : IDisposable
     {
         /// <summary>
+        /// Open CMF file to edit.
+        /// </summary>
+        /// <param name="cmfFile">Path to the CMF file.</param>
+        /// <returns></returns>
+        public static CMFArchive Open(string cmfFile)
+        {
+            FileStream fs = File.Open(cmfFile, FileMode.Open, FileAccess.ReadWrite, FileShare.Read);
+            return Read(fs, false);
+        }
+        /// <summary>
         /// Open CMF file to read.
         /// </summary>
         /// <param name="cmfFile">Path to the CMF file.</param>
@@ -48,7 +58,9 @@ namespace Leayal.Closers.CMF
         private bool leaveStreamOpen;
         private BinaryReader binaryReader;
         internal byte[] _signature;
-        private ReadOnlyCollection<CMFEntry> entrylist;
+        internal ReadOnlyCollection<CMFEntry> entrylist;
+        internal long dataoffsetStart;
+        internal long headeroffsetStart;
 
         /// <summary>
         /// The base stream which this archive instance used to open CMF file.
@@ -62,13 +74,33 @@ namespace Leayal.Closers.CMF
         /// <summary>
         /// Return the list of entry in the CMF archive.
         /// </summary>
-        public ReadOnlyCollection<CMFEntry> Entries => this.entrylist;
+        public ReadOnlyCollection<CMFEntry> Entries
+        {
+            get
+            {
+                if (this._disposed)
+                    throw new System.ObjectDisposedException("Archive");
+
+                if (this.entrylist == null)
+                    this.entrylist = this.ReadEntryList();
+                return this.entrylist;
+            }
+        }
         /// <summary>
         /// Return the <seealso cref="CMFEntry"/> at the specific index.
         /// </summary>
         /// <param name="index">The index of the entry</param>
         /// <returns></returns>
-        public CMFEntry this[int index] => this.Entries[index];
+        public CMFEntry this[int index]
+        {
+            get
+            {
+                if (this._disposed)
+                    throw new System.ObjectDisposedException("Archive");
+
+                return this.Entries[index];
+            }
+        }
         /// <summary>
         /// Return the <seealso cref="CMFEntry"/> which match the given full-path inside the archive. Return null if no entry matches.
         /// </summary>
@@ -78,6 +110,9 @@ namespace Leayal.Closers.CMF
         {
             get
             {
+                if (this._disposed)
+                    throw new System.ObjectDisposedException("Archive");
+
                 if (string.IsNullOrEmpty(path)) return null;
 
                 StringBuilder sb = new StringBuilder();
@@ -100,11 +135,10 @@ namespace Leayal.Closers.CMF
             }
         }
 
-        internal long dataoffsetStart;
-
         private CMFArchive(Stream baseStream, bool leaveOpen)
         {
             this.dataoffsetStart = 0;
+            this.headeroffsetStart = 0;
             this.leaveStreamOpen = leaveOpen;
             this.myReader = null;
             this.BaseStream = baseStream;
@@ -117,8 +151,16 @@ namespace Leayal.Closers.CMF
             // Skip the first 100 bytes. Signature, perhaps?
             this._signature = this.binaryReader.ReadBytes(100);
 
-            this.filecount = CmfHelper.Decode(binaryReader.ReadInt32(), CmfFormat.EntryKey1);
+            this.filecount = CmfHelper.Decode(binaryReader.ReadUInt32(), CmfFormat.EntryKey1);
 
+            this.headeroffsetStart = this.BaseStream.Position;
+
+            this.dataoffsetStart = this.BaseStream.Position + (CmfFormat.FileHeaderSize * this.filecount);
+        }
+
+        private ReadOnlyCollection<CMFEntry> ReadEntryList()
+        {
+            this.BaseStream.Seek(this.headeroffsetStart, SeekOrigin.Begin);
             /*
              * File table has fixed row size 528 bytes.
              * string(512):Filename - int(4):FileSize - int(4):CompressedFileSize - int(4):FileOffset - int(4):Flag
@@ -135,7 +177,7 @@ namespace Leayal.Closers.CMF
             {
                 tmp_filename = null;
                 currentCMFEntry = new CMFEntry();
-                
+
                 readcount = this.binaryReader.Read(bytebuffer, 0, bytebuffer.Length);
                 if (readcount == bytebuffer.Length)
                 {
@@ -184,9 +226,7 @@ namespace Leayal.Closers.CMF
                 offset += readcount;
             }
 
-            this.dataoffsetStart = this.BaseStream.Position;
-
-            this.entrylist = new ReadOnlyCollection<CMFEntry>(entryList);
+            return new ReadOnlyCollection<CMFEntry>(entryList);
         }
 
         /// <summary>
@@ -195,6 +235,9 @@ namespace Leayal.Closers.CMF
         /// <returns></returns>
         public IReader ExtractAllEntries()
         {
+            if (this._disposed)
+                throw new System.ObjectDisposedException("Archive");
+
             if (this.myReader != null)
                 throw new InvalidOperationException("You can only have one reader per archive. Dispose the old one before getting a new one.");
 
@@ -225,6 +268,9 @@ namespace Leayal.Closers.CMF
         /// <param name="progressChangedCallback">The progress callback handler</param>
         public void ExtractAllEntries(string outputFolder, System.ComponentModel.ProgressChangedEventHandler progressChangedCallback)
         {
+            if (this._disposed)
+                throw new System.ObjectDisposedException("Archive");
+
             float current = 0F;
             string fullpath;
             using (IReader reader = this.ExtractAllEntries())
@@ -245,6 +291,9 @@ namespace Leayal.Closers.CMF
         /// <param name="filepath">Destination of the file</param>
         public void ExtractEntry(CMFEntry entry, string filepath)
         {
+            if (this._disposed)
+                throw new System.ObjectDisposedException("Archive");
+
             using (FileStream fs = File.Create(filepath))
                 this.ExtractEntry(entry, fs);
         }
@@ -256,6 +305,9 @@ namespace Leayal.Closers.CMF
         /// <param name="outStream">The output stream</param>
         public void ExtractEntry(CMFEntry entry, Stream outStream)
         {
+            if (this._disposed)
+                throw new System.ObjectDisposedException("Archive");
+
             if (!outStream.CanWrite)
                 throw new InvalidOperationException("The stream should be writable.");
 
@@ -297,6 +349,9 @@ namespace Leayal.Closers.CMF
         /// <returns></returns>
         public IEditor OpenEditor(CompressionLevel compressionLevel)
         {
+            if (this._disposed)
+                throw new System.ObjectDisposedException("Archive");
+
             if (this.myReader != null)
                 throw new InvalidOperationException("You can only have one reader per archive. Dispose the old one before getting a new one.");
 

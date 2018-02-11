@@ -52,6 +52,16 @@
             }
             return result;
         }
-        
+
+        internal static int Decode(uint data, int key)
+        {
+            int result = 0;
+            unsafe
+            {
+                byte* pi = (byte*)&data;
+                result = (0 | pi[0] << 24 | pi[1] << 8 | pi[2] << 16 | pi[3]) ^ key;
+            }
+            return result;
+        }
     }
 }
