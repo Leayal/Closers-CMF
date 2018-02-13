@@ -339,15 +339,26 @@ namespace Leayal.Closers.CMF
         /// <returns></returns>
         public IEditor OpenEditor()
         {
-            return this.OpenEditor(CompressionLevel.Default);
+            return this.OpenEditor(null);
+        }
+
+        /// <summary>
+        /// Create the archive editor for the current CMF Archive instance.
+        /// </summary>
+        /// <param name="temporaryFolder">The directory for temporary files</param>
+        /// <returns></returns>
+        public IEditor OpenEditor(string temporaryFolder)
+        {
+            return this.OpenEditor(temporaryFolder, CompressionLevel.Default);
         }
 
         /// <summary>
         /// Create the archive editor with the given CompressionLevel for the current CMF Archive instance.
         /// </summary>
         /// <param name="compressionLevel">The compression level that the editor will use to compress data</param>
+        /// <param name="temporaryFolder">The directory for temporary files</param>
         /// <returns></returns>
-        public IEditor OpenEditor(CompressionLevel compressionLevel)
+        public IEditor OpenEditor(string temporaryFolder, CompressionLevel compressionLevel)
         {
             if (this._disposed)
                 throw new System.ObjectDisposedException("Archive");
@@ -355,7 +366,10 @@ namespace Leayal.Closers.CMF
             if (this.myReader != null)
                 throw new InvalidOperationException("You can only have one reader per archive. Dispose the old one before getting a new one.");
 
-            this.myEditor = new CMFEditor(this, compressionLevel);
+            if (string.IsNullOrWhiteSpace(temporaryFolder))
+                temporaryFolder = Path.GetTempPath();
+
+            this.myEditor = new CMFEditor(this, temporaryFolder, compressionLevel);
             this.myEditor.Disposed += this.myEditor_Disposed;
 
             return this.myEditor;

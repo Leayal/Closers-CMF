@@ -6,10 +6,18 @@ using System.Text;
 namespace Leayal.Closers.CMF
 {
     /// <summary>
-    /// Provide methods to edit the CMF file content.
+    /// Provide methods to edit the CMF file content. (Not thread-safe)
     /// </summary>
     public interface IEditor : IDisposable
     {
+        /// <summary>
+        /// Get the path to the directory which contains temporary files for writing CMF operation.
+        /// </summary>
+        string TemporaryFolder { get; }
+        /// <summary>
+        /// Determine if the <seealso cref="IEditor"/> is writing to output file.
+        /// </summary>
+        bool IsSaving { get; }
         /// <summary>
         /// Get the compression level of the editor.
         /// </summary>
@@ -43,15 +51,15 @@ namespace Leayal.Closers.CMF
         /// Set new data from a stream for the entry at given index.
         /// </summary>
         /// <param name="entryIndex">The index of the entry</param>
-        /// <param name="data">The stream of the source data</param>
+        /// <param name="data">The stream of the source data. The stream must be opening until <seealso cref="Save"/> is called.</param>
         /// <returns></returns>
         bool SetDataSource(int entryIndex, Stream data);
 
         /// <summary>
         /// Set new data from a stream for the entry which matches the given entry path. Return True if the entry is found, otherwise False.
         /// </summary>
-        /// <param name="entryPath">The path point to an entry</param>
-        /// <param name="data">The stream of the source data</param>
+        /// <param name="entryPath">The path point to an entry.</param>
+        /// <param name="data">The stream of the source data. The stream must be opening until <seealso cref="Save"/> is called.</param>
         /// <returns></returns>
         bool SetDataSource(string entryPath, Stream data);
 
@@ -59,7 +67,7 @@ namespace Leayal.Closers.CMF
         /// Set new data from a stream for the entry which matches the given entry. Return True if the entry is found, otherwise False.
         /// </summary>
         /// <param name="entry">The entry info</param>
-        /// <param name="data">The stream of the source data</param>
+        /// <param name="data">The stream of the source data. The stream must be opening until <seealso cref="Save"/> is called.</param>
         /// <returns></returns>
         bool SetDataSource(CMFEntry entry, Stream data);
 

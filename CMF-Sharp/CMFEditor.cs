@@ -3,33 +3,171 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
+using System.Linq;
 
 namespace Leayal.Closers.CMF
 {
     class CMFEditor : IEditor
     {
-        private Dictionary<CMFEntry, object> datadictionary;
+        private Dictionary<CMFEntry, FileStream> datadictionary;
         private CMFArchive myArchive;
+        private bool _issaving;
+        public bool IsSaving => this._issaving;
+        private byte[] myultimatebuffer;
 
-        internal CMFEditor(CMFArchive archive, CompressionLevel compression)
+        internal CMFEditor(CMFArchive archive, string tempfolder, CompressionLevel compression)
         {
+            this._issaving = false;
             this.myArchive = archive;
             this.CompressionLevel = compression;
-            this.datadictionary = new Dictionary<CMFEntry, object>();
+            this.TemporaryFolder = tempfolder;
+            this.myultimatebuffer = new byte[4096];
+            this.datadictionary = new Dictionary<CMFEntry, FileStream>();
         }
 
         public CompressionLevel CompressionLevel { get; }
 
-        private bool SetEntryData(CMFEntry entry, object data)
+        public string TemporaryFolder { get; }
+
+        private bool SetEntryData(CMFEntry entry, object data, long length)
         {
             if (this._disposed)
                 throw new System.ObjectDisposedException("Editor");
+
+            if (this._issaving)
+                throw new InvalidOperationException("The Editor is writing data. Adding more data is not possible."); // Although it is possible. But I'm lazy.
 
             if (entry == null || this.myArchive.Entries.IndexOf(entry) == -1)
                 return false;
             else
             {
-                this.datadictionary[entry] = data;
+                if (length == -1)
+                {
+                    if (data is Stream stream)
+                    {
+                        FileStream fs = SpawnTempFile();
+                        if (!CmfFormat.IsEncryptedFile(entry.FileName) && entry.IsCompressed)
+                            using (ZlibStream zlibstream = new ZlibStream(fs, System.IO.Compression.CompressionMode.Compress, this.CompressionLevel, true, Encoding.UTF8))
+                                CopyStream(stream, zlibstream, ref this.myultimatebuffer);
+                        else
+                            CopyStream(stream, fs, ref this.myultimatebuffer);
+                        if (fs.Length > entry.CompressedSize)
+                        {
+                            fs.Dispose();
+                            throw new InvalidDataException($"The new data of '{entry.FileName}' size is bigger than the original one.");
+                        }
+                        else
+                        {
+                            if (this.datadictionary.ContainsKey(entry))
+                                this.datadictionary[entry].Dispose();
+                            this.datadictionary[entry] = fs;
+                            fs.Flush();
+                        }
+                    }
+                    else if (data is byte[] dataArray)
+                    {
+                        if (!CmfFormat.IsEncryptedFile(entry.FileName) && entry.IsCompressed)
+                        {
+                            FileStream fs = SpawnTempFile();
+                            using (ZlibStream zlibstream = new ZlibStream(fs, System.IO.Compression.CompressionMode.Compress, this.CompressionLevel, true, Encoding.UTF8))
+                                zlibstream.Write(dataArray, 0, dataArray.Length);
+
+                            if (fs.Length > entry.CompressedSize)
+                            {
+                                fs.Dispose();
+                                throw new InvalidDataException($"The new data of '{entry.FileName}' size is bigger than the original one.");
+                            }
+                            else
+                            {
+                                if (this.datadictionary.ContainsKey(entry))
+                                    this.datadictionary[entry].Dispose();
+                                this.datadictionary[entry] = fs;
+                                fs.Flush();
+                            }
+                        }
+                        else
+                        {
+                            if (dataArray.Length > entry.CompressedSize)
+                            {
+                                throw new InvalidDataException($"The new data of '{entry.FileName}' size is bigger than the original one.");
+                            }
+                            else
+                            {
+                                FileStream fs = SpawnTempFile();
+                                fs.Write(dataArray, 0, dataArray.Length);
+                                if (this.datadictionary.ContainsKey(entry))
+                                    this.datadictionary[entry].Dispose();
+                                this.datadictionary[entry] = fs;
+                                fs.Flush();
+                            }
+                        }
+                    }
+                }
+                else
+                {
+                    if (data is Stream stream)
+                    {
+                        FileStream fs = SpawnTempFile();
+                        if (length > 0)
+                        {
+                            if (!CmfFormat.IsEncryptedFile(entry.FileName) && entry.IsCompressed)
+                                using (ZlibStream zlibstream = new ZlibStream(fs, System.IO.Compression.CompressionMode.Compress, this.CompressionLevel, true, Encoding.UTF8))
+                                    CopyStream(stream, zlibstream, ref this.myultimatebuffer, length);
+                            else
+                                CopyStream(stream, fs, ref this.myultimatebuffer, length);
+                        }
+                        if (fs.Length > entry.CompressedSize)
+                        {
+                            fs.Dispose();
+                            throw new InvalidDataException($"The new data of '{entry.FileName}' size is bigger than the original one.");
+                        }
+                        else
+                        {
+                            if (this.datadictionary.ContainsKey(entry))
+                                this.datadictionary[entry].Dispose();
+                            this.datadictionary[entry] = fs;
+                            fs.Flush();
+                        }
+                    }
+                    else if (data is byte[] dataArray)
+                    {
+                        if (!CmfFormat.IsEncryptedFile(entry.FileName) && entry.IsCompressed)
+                        {
+                            FileStream fs = SpawnTempFile();
+                            using (ZlibStream zlibstream = new ZlibStream(fs, System.IO.Compression.CompressionMode.Compress, this.CompressionLevel, true, Encoding.UTF8))
+                                zlibstream.Write(dataArray, 0, dataArray.Length);
+
+                            if (fs.Length > entry.CompressedSize)
+                            {
+                                fs.Dispose();
+                                throw new InvalidDataException($"The new data of '{entry.FileName}' size is bigger than the original one.");
+                            }
+                            else
+                            {
+                                if (this.datadictionary.ContainsKey(entry))
+                                    this.datadictionary[entry].Dispose();
+                                this.datadictionary[entry] = fs;
+                                fs.Flush();
+                            }
+                        }
+                        else
+                        {
+                            if (dataArray.Length > entry.CompressedSize)
+                            {
+                                throw new InvalidDataException($"The new data of '{entry.FileName}' size is bigger than the original one.");
+                            }
+                            else
+                            {
+                                FileStream fs = SpawnTempFile();
+                                fs.Write(dataArray, 0, dataArray.Length);
+                                if (this.datadictionary.ContainsKey(entry))
+                                    this.datadictionary[entry].Dispose();
+                                this.datadictionary[entry] = fs;
+                                fs.Flush();
+                            }
+                        }
+                    }
+                }
                 return true;
             }
         }
@@ -49,7 +187,7 @@ namespace Leayal.Closers.CMF
 
         public bool SetData(CMFEntry entry, byte[] data)
         {
-            return this.SetEntryData(entry, data);
+            return this.SetEntryData(entry, data, data.LongLength);
         }
 
         public bool SetDataSource(int entryIndex, Stream data)
@@ -69,7 +207,27 @@ namespace Leayal.Closers.CMF
         {
             if (!data.CanRead)
                 throw new InvalidOperationException("The data's stream should be readable.");
-            return this.SetEntryData(entry, data);
+            return this.SetEntryData(entry, data, -1);
+        }
+
+        public bool SetDataSource(int entryIndex, Stream data, long length)
+        {
+            if ((0 <= entryIndex) && (entryIndex < this.myArchive.Entries.Count))
+                return this.SetDataSource(this.myArchive[entryIndex], data, length);
+            else
+                return false;
+        }
+
+        public bool SetDataSource(string entryPath, Stream data, long length)
+        {
+            return this.SetDataSource(this.myArchive[entryPath], data, length);
+        }
+
+        public bool SetDataSource(CMFEntry entry, Stream data, long length)
+        {
+            if (!data.CanRead)
+                throw new InvalidOperationException("The data's stream should be readable.");
+            return this.SetEntryData(entry, data, length);
         }
 
         public bool SetString(int entryIndex, string data)
@@ -105,7 +263,7 @@ namespace Leayal.Closers.CMF
 
         public bool SetString(CMFEntry entry, string data, Encoding encoding)
         {
-            return this.SetEntryData(entry, encoding.GetBytes(data));
+            return this.SetEntryData(entry, encoding.GetBytes(data), -1);
         }
 
         public void Save()
@@ -113,61 +271,42 @@ namespace Leayal.Closers.CMF
             if (this._disposed)
                 throw new System.ObjectDisposedException("Editor");
 
+            if (this._issaving)
+                return;
+
             if (!this.myArchive.BaseStream.CanWrite)
                 throw new InvalidOperationException("The archive is opened with read-only stream. Use SaveAs() instead or re-open the file with read/write access.");
 
-            long oldpos, newpos, newlength, paddingsize;
-            byte[] buffer = new byte[4096];
+            if (this.datadictionary.Count == 0)
+                return;
 
-            foreach (var entrydata in datadictionary)
+            this._issaving = true;
+
+            long paddingsize;
+            KeyValuePair<CMFEntry, FileStream> entrydata;
+            while (this.datadictionary.Count > 0)
             {
+                // Not efficient
+                entrydata = this.datadictionary.First();
                 if (this.myArchive.Entries.IndexOf(entrydata.Key) > -1)
                 {
                     this.myArchive.BaseStream.Seek(entrydata.Key.dataoffset, SeekOrigin.Begin);
-                    if (entrydata.Value is Stream)
+                    CopyStream(entrydata.Value, this.myArchive.BaseStream, ref this.myultimatebuffer);
+
+                    if (entrydata.Value.Length < entrydata.Key.CompressedSize)
                     {
-                        oldpos = this.myArchive.BaseStream.Position;
-                        Stream stream = (Stream)entrydata.Value;
-                        if (entrydata.Key.IsCompressed)
-                            using (ZlibStream zlibstream = new ZlibStream(this.myArchive.BaseStream, System.IO.Compression.CompressionMode.Compress, this.CompressionLevel, true, Encoding.UTF8))
-                                CopyStream(stream, zlibstream, ref buffer);
-                        else
-                            CopyStream(stream, this.myArchive.BaseStream, ref buffer);
-                        newpos = this.myArchive.BaseStream.Position;
-                        newlength = newpos - oldpos;
-                        if (newlength > entrydata.Key.CompressedSize)
-                            throw new InvalidDataException($"The new data of '{entrydata.Key.FileName}' size is bigger than the original one.");
-                        else if (newlength < entrydata.Key.CompressedSize)
-                        {
-                            paddingsize = entrydata.Key.CompressedSize - newlength;
-                            for (int paddingCount = 0; paddingCount < paddingsize; paddingCount++)
-                                this.myArchive.BaseStream.WriteByte(0);
-                        }
-                    }
-                    else if (entrydata.Value is byte[])
-                    {
-                        oldpos = this.myArchive.BaseStream.Position;
-                        byte[] dataArray = (byte[])entrydata.Value;
-                        if (entrydata.Key.IsCompressed)
-                            using (ZlibStream zlibstream = new ZlibStream(this.myArchive.BaseStream, System.IO.Compression.CompressionMode.Compress, this.CompressionLevel, true, Encoding.UTF8))
-                                zlibstream.Write(dataArray, 0, dataArray.Length);
-                        else
-                            this.myArchive.BaseStream.Write(dataArray, 0, dataArray.Length);
-                        newpos = this.myArchive.BaseStream.Position;
-                        newlength = newpos - oldpos;
-                        if (newlength > entrydata.Key.CompressedSize)
-                            throw new InvalidDataException($"The new data of '{entrydata.Key.FileName}' size is bigger than the original one.");
-                        else if (newlength < entrydata.Key.CompressedSize)
-                        {
-                            paddingsize = entrydata.Key.CompressedSize - newlength;
-                            for (int paddingCount = 0; paddingCount < paddingsize; paddingCount++)
-                                this.myArchive.BaseStream.WriteByte(0);
-                        }
+                        paddingsize = entrydata.Key.CompressedSize - entrydata.Value.Length;
+                        for (int paddingCount = 0; paddingCount < paddingsize; paddingCount++)
+                            this.myArchive.BaseStream.WriteByte(0);
                     }
                 }
+                entrydata.Value.Dispose();
+                this.datadictionary.Remove(entrydata.Key);
             }
 
             this.myArchive.BaseStream.Flush();
+
+            this._issaving = false;
         }
 
         public void WriteTo(string filepath)
@@ -175,8 +314,10 @@ namespace Leayal.Closers.CMF
             if (this._disposed)
                 throw new System.ObjectDisposedException("Editor");
 
-            FileStream tfs = this.myArchive.BaseStream as FileStream;
-            if (tfs != null || string.Equals(tfs.Name, Path.GetFullPath(filepath), StringComparison.OrdinalIgnoreCase))
+            if (this._issaving)
+                return;
+            
+            if (this.myArchive.BaseStream is FileStream tfs && string.Equals(tfs.Name, Path.GetFullPath(filepath), StringComparison.OrdinalIgnoreCase))
                 this.Save();
             else
             {
@@ -190,19 +331,23 @@ namespace Leayal.Closers.CMF
             if (this._disposed)
                 throw new System.ObjectDisposedException("Editor");
 
+            if (this._issaving)
+                return;
+
             if (datadictionary.Count == 0)
                 return;
 
+            this._issaving = true;
+
             // Copy header
+            this.myArchive.BaseStream.Seek(0, SeekOrigin.Begin);
             using (EntryStream stream = new EntryStream(this.myArchive.BaseStream, 0, this.myArchive.dataoffsetStart, true))
                 stream.CopyTo(outStream);
 
             // Write entry's content
             CMFEntry entry;
-            object data;
-            long oldpos, newpos, newlength, paddingsize;
-
-            byte[] buffer = new byte[4096];
+            FileStream data;
+            long paddingsize;
 
             for (int i = 0; i < this.myArchive.Entries.Count; i++)
             {
@@ -210,55 +355,28 @@ namespace Leayal.Closers.CMF
                 if (this.datadictionary.ContainsKey(entry))
                 {
                     data = this.datadictionary[entry];
-                    if (data is Stream)
+                    CopyStream(data, this.myArchive.BaseStream, ref this.myultimatebuffer);
+
+                    if (data.Length < entry.CompressedSize)
                     {
-                        oldpos = outStream.Position;
-                        Stream stream = (Stream)data;
-                        if (entry.IsCompressed)
-                            using (ZlibStream zlibstream = new ZlibStream(outStream, System.IO.Compression.CompressionMode.Compress, this.CompressionLevel, true, Encoding.UTF8))
-                                CopyStream(stream, zlibstream, ref buffer);
-                        else
-                            CopyStream(stream, outStream, ref buffer);
-                        newpos = outStream.Position;
-                        newlength = newpos - oldpos;
-                        if (newlength > entry.CompressedSize)
-                            throw new InvalidDataException($"The new data of '{entry.FileName}' size is bigger than the original one.");
-                        else if (newlength < entry.CompressedSize)
-                        {
-                            paddingsize = entry.CompressedSize - newlength;
-                            for (int paddingCount = 0; paddingCount < paddingsize; paddingCount++)
-                                outStream.WriteByte(0);
-                        }
+                        paddingsize = entry.CompressedSize - data.Length;
+                        for (int paddingCount = 0; paddingCount < paddingsize; paddingCount++)
+                            this.myArchive.BaseStream.WriteByte(0);
                     }
-                    else if (data is byte[])
-                    {
-                        oldpos = outStream.Position;
-                        byte[] dataArray = (byte[])data;
-                        if (entry.IsCompressed)
-                            using (ZlibStream zlibstream = new ZlibStream(outStream, System.IO.Compression.CompressionMode.Compress, this.CompressionLevel, true, Encoding.UTF8))
-                                zlibstream.Write(dataArray, 0, dataArray.Length);
-                        else
-                            outStream.Write(dataArray, 0, dataArray.Length);
-                        newpos = outStream.Position;
-                        newlength = newpos - oldpos;
-                        if (newlength > entry.CompressedSize)
-                            throw new InvalidDataException($"The new data of '{entry.FileName}' size is bigger than the original one.");
-                        else if (newlength < entry.CompressedSize)
-                        {
-                            paddingsize = entry.CompressedSize - newlength;
-                            for (int paddingCount = 0; paddingCount < paddingsize; paddingCount++)
-                                outStream.WriteByte(0);
-                        }
-                    }
+                    this.datadictionary[entry].Dispose();
+                    this.datadictionary.Remove(entry);
                 }
                 else
                 {
+                    this.myArchive.BaseStream.Seek(entry.dataoffset + this.myArchive.dataoffsetStart, SeekOrigin.Begin);
                     using (EntryStream stream = new EntryStream(this.myArchive.BaseStream, entry.dataoffset, entry.CompressedSize, true))
-                        CopyStream(stream, outStream, ref buffer);
+                        CopyStream(stream, outStream, ref this.myultimatebuffer);
                 }
             }
 
             outStream.Flush();
+
+            this._issaving = false;
         }
 
         private static void CopyStream(Stream inStream, Stream outStrema, ref byte[] buffer)
@@ -269,6 +387,42 @@ namespace Leayal.Closers.CMF
                 outStrema.Write(buffer, 0, readCount);
                 readCount = inStream.Read(buffer, 0, buffer.Length);
             }
+        }
+
+        private static void CopyStream(Stream inStream, Stream outStrema, ref byte[] buffer, long length)
+        {
+            if (length == 0) return;
+            int readCount;
+            if (length < buffer.Length)
+                readCount = inStream.Read(buffer, 0, (int)length);
+            else
+                readCount = inStream.Read(buffer, 0, buffer.Length);
+            while (length > 0 && readCount > 0)
+            {
+                length -= readCount;
+                outStrema.Write(buffer, 0, readCount);
+                if (length <= 0)
+                    break;
+                if (length < buffer.Length)
+                    readCount = inStream.Read(buffer, 0, (int)length);
+                else
+                    readCount = inStream.Read(buffer, 0, buffer.Length);
+            }
+        }
+
+        // Why "spawn" though???
+        private FileStream SpawnTempFile()
+        {
+            return File.Create(this.TryFileName(), 4096, FileOptions.DeleteOnClose);
+        }
+
+        private string TryFileName()
+        {
+            string path = Path.Combine(this.TemporaryFolder, "cmf-data-" + Guid.NewGuid().ToString());
+            if (File.Exists(path))
+                return TryFileName();
+            else
+                return path;
         }
 
         private bool _disposed;
