@@ -10,7 +10,7 @@ namespace Leayal.Closers.CMF
         internal Stream BaseStream { get; }
         public override bool CanRead => this.BaseStream.CanRead;
         public override bool CanSeek => this.BaseStream.CanSeek;
-        public override bool CanWrite => this.BaseStream.CanWrite;
+        public override bool CanWrite => false;
         public override bool CanTimeout => this.BaseStream.CanTimeout;
         public override int ReadTimeout { get => this.BaseStream.ReadTimeout; set => this.BaseStream.ReadTimeout = value; }
         public override int WriteTimeout { get => this.BaseStream.WriteTimeout; set => this.BaseStream.WriteTimeout = value; }
@@ -41,27 +41,48 @@ namespace Leayal.Closers.CMF
 
         public override void Flush()
         {
-            this.BaseStream.Flush();
+            // Do nothing
+            // this.BaseStream.Flush();
         }
 
         public override long Seek(long offset, SeekOrigin origin)
         {
+            long newpos, mypos;
+
             switch (origin)
             {
                 case SeekOrigin.Begin:
-                    return this.BaseStream.Seek(this._offset + offset, origin);
+                    if (offset < 0 || offset > this.Length)
+                        throw new InvalidOperationException();
+                    newpos = this.BaseStream.Seek(this._offset + offset, origin);
+                    break;
                 case SeekOrigin.Current:
-                    return this.BaseStream.Seek(offset, origin);
+                    if (offset == 0)
+                        return this.Position;
+                    mypos = this.Position + offset;
+                    if (mypos < this._offset)
+                        newpos = this.BaseStream.Seek(this._offset, origin);
+                    else if (mypos > (this._offset + this.Length))
+                        throw new InvalidOperationException();
+                    else
+                        newpos = this.BaseStream.Seek(mypos, origin);
+                    break;
                 case SeekOrigin.End:
-                    return this.BaseStream.Seek(offset, origin);
+                    if (offset <= (-1 * this.Length) || offset > 0)
+                        throw new InvalidOperationException();
+                    newpos = this.BaseStream.Seek((this._offset + this.Length) + offset, origin);
+                    break;
                 default:
-                    return this.Position;
+                    newpos = this.Position;
+                    break;
             }
+            return newpos;
         }
 
         public override void SetLength(long value)
         {
-            this.BaseStream.SetLength(value);
+            throw new InvalidOperationException();
+            // this.BaseStream.SetLength(value);
         }
 
         public override int Read(byte[] buffer, int offset, int count)
@@ -83,7 +104,8 @@ namespace Leayal.Closers.CMF
 
         public override void Write(byte[] buffer, int offset, int count)
         {
-            this.BaseStream.Write(buffer, offset, count);
+            throw new InvalidOperationException();
+            // this.BaseStream.Write(buffer, offset, count);
         }
 
         public byte[] ReadToEnd()
@@ -95,7 +117,8 @@ namespace Leayal.Closers.CMF
 
         public override void WriteByte(byte value)
         {
-            this.BaseStream.WriteByte(value);
+            throw new InvalidOperationException();
+            // this.BaseStream.WriteByte(value);
         }
 
         protected override void Dispose(bool disposing)
