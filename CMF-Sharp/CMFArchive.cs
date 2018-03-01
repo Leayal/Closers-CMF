@@ -313,6 +313,8 @@ namespace Leayal.Closers.CMF
 
             long entrydataoffset = entry.dataoffset + this.dataoffsetStart;
 
+            this.BaseStream.Seek(entrydataoffset, SeekOrigin.Begin);
+
             if (!CmfFormat.IsEncryptedFile(entry.FileName) && entry.IsCompressed)
             {
                 using (Stream srcStream = new ZlibStream(new EntryStream(this.BaseStream, entrydataoffset, entry.CompressedSize, true), System.IO.Compression.CompressionMode.Decompress, false))
